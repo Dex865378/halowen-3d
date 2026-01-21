@@ -51,11 +51,23 @@ class HalloweenScene {
         this.animate();
 
         // Loading Progress
+        this.loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+            const progress = (itemsLoaded / itemsTotal) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('loader-text').innerText = `Invocando espíritus 3D... ${Math.round(progress)}%`;
+        };
+
         this.loadingManager.onLoad = () => {
-            document.getElementById('loader').style.opacity = '0';
+            document.getElementById('progress-bar').style.width = '100%';
+            document.getElementById('loader-text').innerText = 'Ritual completado. Entrando en el abismo...';
+
             setTimeout(() => {
-                document.getElementById('loader').style.display = 'none';
-            }, 500);
+                const loader = document.getElementById('loader');
+                loader.style.opacity = '0';
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 500);
+            }, 800);
         };
     }
 
@@ -108,26 +120,26 @@ class HalloweenScene {
     loadModels() {
         // Pumpkin
         this.loadObject(
-            'https://raw.githubusercontent.com/NeoPrint3D/TresJsHalloweenPumpkin/main/public/pumpkin.glb',
-            { x: -3, y: 0, z: 2 }, 2,
-            'Gran Calabaza de Fuego',
-            'Una calabaza poseída por un espíritu ígneo. Sus ojos arden con el deseo de devorar sombras.'
+            'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/pumpkin/model.gltf', // Better source
+            { x: -4, y: 0, z: 1 }, 1.5,
+            'Calabaza de Fuego',
+            'Una calabaza tallada que brilla con una luz espectral en su interior. Dicen que guía a las almas perdidas.'
         );
 
         // Ghost
         this.loadObject(
-            'https://raw.githubusercontent.com/YungleResearcTeam/Yungle3D/main/GHOST.glb',
-            { x: 3, y: 2, z: -1 }, 4,
-            'Espectro Silencioso',
-            'Este espíritu vaga por el jardín eterno buscando lo que perdió hace siglos. No le gusta que lo miren fijamente.'
+            'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb', // Fallback for ghost if one is missing
+            { x: 4, y: 0, z: -2 }, 1,
+            'Centinela Espectral',
+            'Un guardián de metal que ha sido poseído por una inteligencia del más allá. Vigila el perímetro sin descanso.'
         );
 
-        // Gravestone (Using a simple box with a texture as fallback if remote fails, but let's try another source)
+        // Cauldron / Pot
         this.loadObject(
-            'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb', // Just for fun/testing if others fail, but I will replace it if I find a grave.
-            { x: 0, y: 0, z: -4 }, 1,
-            'Guardián Mecánico',
-            'Incluso en el más allá, la tecnología sobrevive. El guardián de las tumbas de silicio.'
+            'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/cauldron/model.gltf',
+            { x: 0, y: 0, z: -5 }, 2,
+            'Caldero de Almas',
+            'Un recipiente donde se cocinan pociones prohibidas. El humo que desprende puede alterar la realidad misma.'
         );
     }
 
