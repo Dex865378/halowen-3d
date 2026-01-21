@@ -228,7 +228,10 @@ class HalloweenScene {
         const assets = [
             { url: 'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/pumpkin/model.gltf', pos: { x: -4, y: 0, z: 1 }, s: 1.5, n: 'Calabaza de Fuego', d: 'Una calabaza que guía a las almas.' },
             { url: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb', pos: { x: 4, y: 0, z: -2 }, s: 1, n: 'Centinela Espectral', d: 'Un guardián poseído que vigila el perímetro.' },
-            { url: 'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/cauldron/model.gltf', pos: { x: 0, y: 0, z: -5 }, s: 2, n: 'Caldero de Almas', d: 'Donde se cocinan pociones prohibidas.' }
+            { url: 'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/cauldron/model.gltf', pos: { x: 0, y: 0, z: -5 }, s: 2, n: 'Caldero de Almas', d: 'Donde se cocinan pociones prohibidas.' },
+            { url: 'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/ghost/model.gltf', pos: { x: 6, y: 1.5, z: 2 }, s: 1.5, n: 'Espíritu Errante', d: 'Un fantasma que busca algo que perdió hace siglos.' },
+            { url: 'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/tombstone/model.gltf', pos: { x: -6, y: 0, z: -3 }, s: 1.8, n: 'Lápida del Olvido', d: 'Aquí yace alguien cuyo nombre ha sido borrado por el tiempo.' },
+            { url: 'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/skull/model.gltf', pos: { x: -2, y: 0.2, z: 4 }, s: 1.2, n: 'Calavera Susurrante', d: 'Si te acercas lo suficiente, podrás oír sus secretos antiguos.' }
         ];
         assets.forEach(a => {
             this.loader.load(a.url, (gltf) => {
