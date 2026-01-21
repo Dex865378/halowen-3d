@@ -168,6 +168,34 @@ footer {
     }
 }
 
+@keyframes glitch {
+    0% {
+        transform: translateY(-50%) skew(0deg);
+        opacity: 0;
+    }
+
+    20% {
+        transform: translateY(-51%) skew(10deg);
+        color: var(--accent);
+        opacity: 1;
+    }
+
+    40% {
+        transform: translateY(-49%) skew(-10deg);
+        color: var(--secondary);
+    }
+
+    60% {
+        transform: translateY(-50%) skew(2deg);
+        color: var(--primary);
+    }
+
+    100% {
+        transform: translateY(-50%) skew(0deg);
+        opacity: 1;
+    }
+}
+
 @media (max-width: 768px) {
     .glow-text {
         font-size: 2.5rem;

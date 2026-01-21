@@ -50,6 +50,9 @@ class HalloweenScene {
         this.setupLights();
         this.createEnvironment();
         this.createMoon();
+        this.createTrees();
+        this.createBats();
+        this.createRain();
         this.loadModels();
         this.setupEventListeners();
         this.setupAudio();
@@ -197,6 +200,7 @@ class HalloweenScene {
     triggerLightning() {
         if (!this.lightningLight) return;
         this.lightningLight.intensity = 15;
+        if (this.rain) this.rain.material.opacity = 0.4; // Light up rain during flash
 
         // Random thunder sound effect (Noise)
         const buffer = this.audioCtx.createBuffer(1, this.audioCtx.sampleRate * 2, this.audioCtx.sampleRate);
@@ -212,9 +216,64 @@ class HalloweenScene {
         gain.connect(this.audioCtx.destination);
         source.start();
 
-        setTimeout(() => this.lightningLight.intensity = 0, 100);
-        setTimeout(() => this.lightningLight.intensity = 10, 150);
-        setTimeout(() => this.lightningLight.intensity = 0, 250);
+        setTimeout(() => {
+            if (this.lightningLight) this.lightningLight.intensity = 0;
+            if (this.rain) this.rain.material.opacity = 0.05;
+        }, 100);
+        setTimeout(() => {
+            if (this.lightningLight) this.lightningLight.intensity = 10;
+        }, 150);
+        setTimeout(() => {
+            if (this.lightningLight) this.lightningLight.intensity = 0;
+        }, 250);
+    }
+
+    createTrees() {
+        const treeGroup = new THREE.Group();
+        const treeMat = new THREE.MeshBasicMaterial({ color: '#000000' });
+
+        for (let i = 0; i < 15; i++) {
+            const h = Math.random() * 5 + 5;
+            const tree = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.5, h, 6), treeMat);
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 15 + Math.random() * 10;
+            tree.position.set(Math.cos(angle) * dist, h / 2, Math.sin(angle) * dist);
+            tree.rotation.z = (Math.random() - 0.5) * 0.2;
+            treeGroup.add(tree);
+        }
+        this.scene.add(treeGroup);
+    }
+
+    createBats() {
+        this.bats = new THREE.Group();
+        const batGeo = new THREE.PlaneGeometry(0.5, 0.2);
+        const batMat = new THREE.MeshBasicMaterial({ color: '#000000', side: THREE.DoubleSide });
+
+        for (let i = 0; i < 20; i++) {
+            const bat = new THREE.Mesh(batGeo, batMat);
+            bat.position.set((Math.random() - 0.5) * 40, 10 + Math.random() * 10, (Math.random() - 0.5) * 40);
+            bat.userData = { speed: Math.random() * 0.1 + 0.05, angle: Math.random() * Math.PI * 2 };
+            this.bats.add(bat);
+        }
+        this.scene.add(this.bats);
+    }
+
+    createRain() {
+        const rainGeo = new THREE.BufferGeometry();
+        const rainCount = 1000;
+        const positions = new Float32Array(rainCount * 3);
+        for (let i = 0; i < rainCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 40;
+        }
+        rainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const rainMat = new THREE.PointsMaterial({
+            color: '#aaaaff',
+            size: 0.05,
+            transparent: true,
+            opacity: 0.05
+        });
+        this.rain = new THREE.Points(rainGeo, rainMat);
+        this.scene.add(this.rain);
     }
 
     loadModels() {
@@ -300,8 +359,15 @@ class HalloweenScene {
 
     showObjectInfo(data) {
         const info = document.getElementById('object-info');
-        document.getElementById('object-name').innerText = data.name;
+        const nameEl = document.getElementById('object-name');
+        nameEl.innerText = data.name;
         document.getElementById('object-desc').innerText = data.description;
+
+        // Glitch effect on show
+        info.style.animation = 'none';
+        info.offsetHeight; // trigger reflow
+        info.style.animation = 'glitch 0.3s ease';
+
         info.classList.remove('hidden');
     }
 
@@ -353,6 +419,27 @@ class HalloweenScene {
         if (this.embers) {
             this.embers.rotation.y += 0.001;
             this.embers.position.y = Math.sin(time * 0.5) * 0.5;
+        }
+
+        // Animate Bats
+        if (this.bats) {
+            this.bats.children.forEach(bat => {
+                bat.userData.angle += 0.02;
+                bat.position.x += Math.cos(bat.userData.angle) * bat.userData.speed;
+                bat.position.z += Math.sin(bat.userData.angle) * bat.userData.speed;
+                bat.rotation.y = -bat.userData.angle;
+                bat.scale.x = Math.sin(time * 20) > 0 ? 1 : 0.5; // Flapping wing effect
+            });
+        }
+
+        // Animate Rain
+        if (this.rain) {
+            const positions = this.rain.geometry.attributes.position.array;
+            for (let i = 1; i < positions.length; i += 3) {
+                positions[i] -= 0.5;
+                if (positions[i] < 0) positions[i] = 20;
+            }
+            this.rain.geometry.attributes.position.needsUpdate = true;
         }
 
         // Subtle floating animation for items
