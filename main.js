@@ -13,6 +13,8 @@ class HalloweenScene {
         this.loader = new GLTFLoader(this.loadingManager);
 
         this.items = [];
+        this.mixers = [];
+        this.clock = new THREE.Clock();
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
         this.hoveredObject = null;
@@ -317,10 +319,17 @@ class HalloweenScene {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
-                    // Tag the child so we know what it belongs to
                     child.userData = { name, description, isHalloweenItem: true };
                 }
             });
+
+            // Handle Animations
+            if (gltf.animations && gltf.animations.length > 0) {
+                const mixer = new THREE.AnimationMixer(model);
+                const action = mixer.clipAction(gltf.animations[0]); // Play first animation
+                action.play();
+                this.mixers.push(mixer);
+            }
 
             this.scene.add(model);
             this.items.push(model);
@@ -385,17 +394,24 @@ class HalloweenScene {
         this.controls.update();
 
         const time = Date.now() * 0.001;
+        const delta = this.clock.getDelta();
+
+        // Update Animation Mixers
+        this.mixers.forEach(mixer => mixer.update(delta));
+
+        // Camera Breathing Effect
+        this.camera.position.y += Math.sin(time * 0.5) * 0.005;
 
         // Lightning random trigger
         if (Math.random() > 0.997) {
             this.triggerLightning();
         }
 
-        // Blood Moon cycle (Slow transition)
+        // Blood Moon cycle
         if (this.moonMat) {
             const shift = (Math.sin(time * 0.1) + 1) / 2;
-            this.moonMat.color.setHSL(0, shift, 0.5 + shift * 0.5); // Turns red
-            this.scene.fog.color.setHSL(0.7, 0.5, 0.05 + shift * 0.02);
+            this.moonMat.color.setHSL(0, shift, 0.5 + shift * 0.5);
+            this.scene.fog.color.setHSL(0.7, 0.3, 0.02 + shift * 0.01);
         }
 
         // Flickering Pumpkin Light
@@ -403,12 +419,15 @@ class HalloweenScene {
             this.pumpkinLight.intensity = 8 + Math.sin(time * 10) * 2 + Math.random() * 2;
         }
 
-        // Mouse "Flashlight" follow
+        // Flickering Mouse "Flashlight"
         if (this.mouseLight) {
             this.raycaster.setFromCamera(this.mouse, this.camera);
             this.mouseLight.position.copy(this.camera.position);
             this.mouseLight.position.add(this.raycaster.ray.direction.multiplyScalar(2));
-            this.mouseLight.intensity = 0.5;
+
+            // Random flickering battery effect
+            const flicker = Math.random() > 0.98 ? Math.random() * 0.5 : 1;
+            this.mouseLight.intensity = 0.5 * flicker;
         }
 
         // Animate Fog
