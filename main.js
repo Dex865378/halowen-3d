@@ -18,6 +18,7 @@ class HalloweenScene {
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
         this.hoveredObject = null;
+        this.shakeTime = 0;
 
         this.init();
     }
@@ -30,13 +31,13 @@ class HalloweenScene {
         // Renderer
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: false, // Antialias is heavy with post-processing
+            antialias: false,
             alpha: true,
             powerPreference: 'high-performance'
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(1); // Lock to 1 to save GPU
-        this.renderer.shadowMap.enabled = false; // Disable heavy shadows
+        this.renderer.setPixelRatio(1);
+        this.renderer.shadowMap.enabled = false;
 
         // Controls
         this.controls = new OrbitControls(this.camera, this.canvas);
@@ -46,7 +47,7 @@ class HalloweenScene {
         this.controls.autoRotate = true;
         this.controls.autoRotateSpeed = 0.5;
 
-        // Fog & Scene Background
+        // Fog
         this.scene.fog = new THREE.FogExp2('#0a0a14', 0.05);
 
         this.setupLights();
@@ -55,429 +56,267 @@ class HalloweenScene {
         this.createTrees();
         this.createBats();
         this.createRain();
+        this.createLeaves();
         this.loadModels();
         this.setupEventListeners();
         this.setupAudio();
         this.setupPostProcessing();
         this.animate();
 
-        // Loading Progress
-        this.loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
-            const progress = (itemsLoaded / itemsTotal) * 100;
-            document.getElementById('progress-bar').style.width = `${progress}%`;
-            document.getElementById('loader-text').innerText = `Invocando espíritus 3D... ${Math.round(progress)}%`;
+        // Progress
+        this.loadingManager.onProgress = (url, loaded, total) => {
+            const p = (loaded / total) * 100;
+            document.getElementById('progress-bar').style.width = `${p}%`;
+            document.getElementById('loader-text').innerText = `Invocando espíritus 3D... ${Math.round(p)}%`;
         };
 
         this.loadingManager.onLoad = () => {
-            document.getElementById('progress-bar').style.width = '100%';
             const text = document.getElementById('loader-text');
             text.innerText = 'Ritual completado. Entrando en el abismo...';
             text.style.color = '#ff4d00';
-
             setTimeout(() => {
                 const loader = document.getElementById('loader');
                 loader.classList.add('open');
-                setTimeout(() => {
-                    loader.style.display = 'none';
-                }, 2000); // Wait for gate animation
+                setTimeout(() => loader.style.display = 'none', 2000);
             }, 1000);
         };
     }
 
     setupLights() {
-        // Lightning Flash
         this.lightningLight = new THREE.DirectionalLight('#ffffff', 0);
         this.scene.add(this.lightningLight);
 
-        // Ambient Purples
-        const ambientLight = new THREE.AmbientLight('#1a0b2e', 0.4);
-        this.scene.add(ambientLight);
+        const ambient = new THREE.AmbientLight('#1a0b2e', 0.4);
+        this.scene.add(ambient);
 
-        // The "Pumpkin Flame"
         this.pumpkinLight = new THREE.PointLight('#ff4d00', 10, 15);
         this.pumpkinLight.position.set(-4, 1.5, 1);
         this.scene.add(this.pumpkinLight);
 
-        // Subtle mouse light
         this.mouseLight = new THREE.PointLight('#ffffff', 0, 10);
         this.scene.add(this.mouseLight);
     }
 
     createEnvironment() {
-        // Advanced "Spooky" Ground
-        const groundGeometry = new THREE.PlaneGeometry(100, 100, 50, 50);
+        const groundGeo = new THREE.PlaneGeometry(100, 100, 50, 50);
+        const verts = groundGeo.attributes.position.array;
+        for (let i = 0; i < verts.length; i += 3) verts[i + 2] = Math.random() * 0.2;
 
-        // Add random height to the ground for a rough terrain look
-        const vertices = groundGeometry.attributes.position.array;
-        for (let i = 0; i < vertices.length; i += 3) {
-            vertices[i + 2] = Math.random() * 0.2;
-        }
-
-        const groundMaterial = new THREE.MeshStandardMaterial({
-            color: '#020205',
-            roughness: 0.9,
-            metalness: 0.1,
-            flatShading: true
-        });
-
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        const groundMat = new THREE.MeshStandardMaterial({ color: '#020205', roughness: 0.9, flatShading: true });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
         this.scene.add(ground);
 
-        // Fog Particles (Fewer but larger for performance)
+        // Fog Particles
         this.fogParticles = new THREE.Group();
-        const fogGeo = new THREE.SphereGeometry(1, 6, 6); // More efficient geometry
-        const fogMat = new THREE.MeshBasicMaterial({
-            color: '#3a2065',
-            transparent: true,
-            opacity: 0.08
-        });
-
-        for (let i = 0; i < 60; i++) { // Reduced from 200
-            const particle = new THREE.Mesh(fogGeo, fogMat);
-            particle.position.set(
-                (Math.random() - 0.5) * 40,
-                Math.random() * 2,
-                (Math.random() - 0.5) * 40
-            );
-            particle.scale.setScalar(Math.random() * 4 + 2);
-            this.fogParticles.add(particle);
+        const fGeo = new THREE.SphereGeometry(1, 6, 6);
+        const fMat = new THREE.MeshBasicMaterial({ color: '#3a2065', transparent: true, opacity: 0.08 });
+        for (let i = 0; i < 60; i++) {
+            const p = new THREE.Mesh(fGeo, fMat);
+            p.position.set((Math.random() - 0.5) * 40, Math.random() * 2, (Math.random() - 0.5) * 40);
+            p.scale.setScalar(Math.random() * 4 + 2);
+            this.fogParticles.add(p);
         }
         this.scene.add(this.fogParticles);
 
-        // Fireflies / Floating Embers
-        const embersGeo = new THREE.BufferGeometry();
-        const embersCount = 100; // Reduced from 300
-        const embersPos = new Float32Array(embersCount * 3);
-        for (let i = 0; i < embersCount * 3; i++) {
-            embersPos[i] = (Math.random() - 0.5) * 40;
-        }
-        embersGeo.setAttribute('position', new THREE.BufferAttribute(embersPos, 3));
-        const embersMat = new THREE.PointsMaterial({
-            size: 0.1,
-            color: '#ff6600',
-            transparent: true,
-            opacity: 0.6,
-            blending: THREE.AdditiveBlending
-        });
-        this.embers = new THREE.Points(embersGeo, embersMat);
+        // Embers
+        const eGeo = new THREE.BufferGeometry();
+        const ePos = new Float32Array(100 * 3);
+        for (let i = 0; i < 300; i++) ePos[i] = (Math.random() - 0.5) * 40;
+        eGeo.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
+        const eMat = new THREE.PointsMaterial({ size: 0.1, color: '#ff6600', transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+        this.embers = new THREE.Points(eGeo, eMat);
         this.scene.add(this.embers);
     }
 
     createMoon() {
-        const moonGeo = new THREE.SphereGeometry(2, 32, 32);
+        const mGeo = new THREE.SphereGeometry(2, 32, 32);
         this.moonMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-        this.moon = new THREE.Mesh(moonGeo, this.moonMat);
+        this.moon = new THREE.Mesh(mGeo, this.moonMat);
         this.moon.position.set(15, 15, -20);
         this.scene.add(this.moon);
-
-        // Moon glow
-        const glowGeo = new THREE.SphereGeometry(2.5, 32, 32);
-        const glowMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.1 });
-        const glow = new THREE.Mesh(glowGeo, glowMat);
-        this.moon.add(glow);
-    }
-
-    setupPostProcessing() {
-        const renderScene = new RenderPass(this.scene, this.camera);
-        this.bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(window.innerWidth, window.innerHeight),
-            0.8, // Reduced strength
-            0.3, // Reduced radius
-            0.9  // Higher threshold
-        );
-
-        this.composer = new EffectComposer(this.renderer);
-        this.composer.addPass(renderScene);
-        this.composer.addPass(this.bloomPass);
-    }
-
-    setupAudio() {
-        this.listener = new THREE.AudioListener();
-        this.camera.add(this.listener);
-        this.audioCtx = THREE.AudioContext.getContext();
-
-        // Resume audio on interaction
-        document.body.addEventListener('click', () => {
-            if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
-        }, { once: true });
-    }
-
-    triggerLightning() {
-        if (!this.lightningLight) return;
-        this.lightningLight.intensity = 15;
-        if (this.rain) this.rain.material.opacity = 0.4; // Light up rain during flash
-
-        // Random thunder sound effect (Noise)
-        const buffer = this.audioCtx.createBuffer(1, this.audioCtx.sampleRate * 2, this.audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < buffer.length; i++) {
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 5000);
-        }
-        const source = this.audioCtx.createBufferSource();
-        source.buffer = buffer;
-        const gain = this.audioCtx.createGain();
-        gain.gain.value = 0.1;
-        source.connect(gain);
-        gain.connect(this.audioCtx.destination);
-        source.start();
-
-        setTimeout(() => {
-            if (this.lightningLight) this.lightningLight.intensity = 0;
-            if (this.rain) this.rain.material.opacity = 0.05;
-        }, 100);
-        setTimeout(() => {
-            if (this.lightningLight) this.lightningLight.intensity = 10;
-        }, 150);
-        setTimeout(() => {
-            if (this.lightningLight) this.lightningLight.intensity = 0;
-        }, 250);
+        const gGeo = new THREE.SphereGeometry(2.5, 32, 32);
+        const gMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.1 });
+        this.moon.add(new THREE.Mesh(gGeo, gMat));
     }
 
     createTrees() {
-        const treeGroup = new THREE.Group();
-        const treeMat = new THREE.MeshBasicMaterial({ color: '#000000' });
-
+        const tGroup = new THREE.Group();
+        const tMat = new THREE.MeshBasicMaterial({ color: '#000000' });
         for (let i = 0; i < 15; i++) {
             const h = Math.random() * 5 + 5;
-            const tree = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.5, h, 6), treeMat);
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 15 + Math.random() * 10;
-            tree.position.set(Math.cos(angle) * dist, h / 2, Math.sin(angle) * dist);
-            tree.rotation.z = (Math.random() - 0.5) * 0.2;
-            treeGroup.add(tree);
+            const t = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.5, h, 6), tMat);
+            const a = Math.random() * Math.PI * 2;
+            const d = 15 + Math.random() * 10;
+            t.position.set(Math.cos(a) * d, h / 2, Math.sin(a) * d);
+            tGroup.add(t);
         }
-        this.scene.add(treeGroup);
+        this.scene.add(tGroup);
     }
 
     createBats() {
         this.bats = new THREE.Group();
-        const batGeo = new THREE.PlaneGeometry(0.5, 0.2);
-        const batMat = new THREE.MeshBasicMaterial({ color: '#000000', side: THREE.DoubleSide });
-
+        const bGeo = new THREE.PlaneGeometry(0.5, 0.2);
+        const bMat = new THREE.MeshBasicMaterial({ color: '#000000', side: THREE.DoubleSide });
         for (let i = 0; i < 20; i++) {
-            const bat = new THREE.Mesh(batGeo, batMat);
-            bat.position.set((Math.random() - 0.5) * 40, 10 + Math.random() * 10, (Math.random() - 0.5) * 40);
-            bat.userData = { speed: Math.random() * 0.1 + 0.05, angle: Math.random() * Math.PI * 2 };
-            this.bats.add(bat);
+            const b = new THREE.Mesh(bGeo, bMat);
+            b.position.set((Math.random() - 0.5) * 40, 10 + Math.random() * 10, (Math.random() - 0.5) * 40);
+            b.userData = { speed: Math.random() * 0.1 + 0.05, angle: Math.random() * Math.PI * 2 };
+            this.bats.add(b);
         }
         this.scene.add(this.bats);
     }
 
     createRain() {
-        const rainGeo = new THREE.BufferGeometry();
-        const rainCount = 1000;
-        const positions = new Float32Array(rainCount * 3);
-        for (let i = 0; i < rainCount * 3; i++) {
-            positions[i] = (Math.random() - 0.5) * 40;
-        }
-        rainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        const rainMat = new THREE.PointsMaterial({
-            color: '#aaaaff',
-            size: 0.05,
-            transparent: true,
-            opacity: 0.05
-        });
-        this.rain = new THREE.Points(rainGeo, rainMat);
+        const rGeo = new THREE.BufferGeometry();
+        const rPos = new Float32Array(1000 * 3);
+        for (let i = 0; i < 3000; i++) rPos[i] = (Math.random() - 0.5) * 40;
+        rGeo.setAttribute('position', new THREE.BufferAttribute(rPos, 3));
+        this.rain = new THREE.Points(rGeo, new THREE.PointsMaterial({ color: '#aaaaff', size: 0.05, transparent: true, opacity: 0.05 }));
         this.scene.add(this.rain);
     }
 
-    loadModels() {
-        // Pumpkin
-        this.loadObject(
-            'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/pumpkin/model.gltf', // Better source
-            { x: -4, y: 0, z: 1 }, 1.5,
-            'Calabaza de Fuego',
-            'Una calabaza tallada que brilla con una luz espectral en su interior. Dicen que guía a las almas perdidas.'
-        );
-
-        // Ghost
-        this.loadObject(
-            'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb', // Fallback for ghost if one is missing
-            { x: 4, y: 0, z: -2 }, 1,
-            'Centinela Espectral',
-            'Un guardián de metal que ha sido poseído por una inteligencia del más allá. Vigila el perímetro sin descanso.'
-        );
-
-        // Cauldron / Pot
-        this.loadObject(
-            'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/cauldron/model.gltf',
-            { x: 0, y: 0, z: -5 }, 2,
-            'Caldero de Almas',
-            'Un recipiente donde se cocinan pociones prohibidas. El humo que desprende puede alterar la realidad misma.'
-        );
+    createLeaves() {
+        const lGeo = new THREE.PlaneGeometry(0.2, 0.2);
+        const lMat = new THREE.MeshStandardMaterial({ color: '#4a2c10', side: THREE.DoubleSide, roughness: 1 });
+        this.leaves = new THREE.Group();
+        for (let i = 0; i < 40; i++) {
+            const l = new THREE.Mesh(lGeo, lMat);
+            l.position.set((Math.random() - 0.5) * 40, 5 + Math.random() * 10, (Math.random() - 0.5) * 40);
+            l.userData = { sy: Math.random() * 0.02 + 0.01, sr: Math.random() * 0.02 };
+            this.leaves.add(l);
+        }
+        this.scene.add(this.leaves);
     }
 
-    loadObject(url, pos, scale, name, description) {
-        this.loader.load(url, (gltf) => {
-            const model = gltf.scene;
-            model.position.set(pos.x, pos.y, pos.z);
-            model.scale.set(scale, scale, scale);
+    setupPostProcessing() {
+        const rPass = new RenderPass(this.scene, this.camera);
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.3, 0.9);
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(rPass);
+        this.composer.addPass(this.bloomPass);
+    }
 
-            model.traverse(child => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                    child.userData = { name, description, isHalloweenItem: true };
+    setupAudio() {
+        this.audioCtx = THREE.AudioContext.getContext();
+        document.body.addEventListener('click', () => { if (this.audioCtx.state === 'suspended') this.audioCtx.resume(); }, { once: true });
+    }
+
+    triggerLightning() {
+        if (!this.lightningLight) return;
+        this.lightningLight.intensity = 15;
+        this.shakeTime = 0.5;
+        if (this.rain) this.rain.material.opacity = 0.4;
+
+        const buf = this.audioCtx.createBuffer(1, this.audioCtx.sampleRate * 2, this.audioCtx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < buf.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / 5000);
+        const s = this.audioCtx.createBufferSource();
+        s.buffer = buf;
+        const g = this.audioCtx.createGain();
+        g.gain.value = 0.1;
+        s.connect(g);
+        g.connect(this.audioCtx.destination);
+        s.start();
+
+        setTimeout(() => { this.lightningLight.intensity = 0; if (this.rain) this.rain.material.opacity = 0.05; }, 100);
+        setTimeout(() => { this.lightningLight.intensity = 10; }, 150);
+        setTimeout(() => { this.lightningLight.intensity = 0; }, 250);
+    }
+
+    loadModels() {
+        const assets = [
+            { url: 'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/pumpkin/model.gltf', pos: { x: -4, y: 0, z: 1 }, s: 1.5, n: 'Calabaza de Fuego', d: 'Una calabaza que guía a las almas.' },
+            { url: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb', pos: { x: 4, y: 0, z: -2 }, s: 1, n: 'Centinela Espectral', d: 'Un guardián poseído que vigila el perímetro.' },
+            { url: 'https://raw.githubusercontent.com/pmndrs/market-assets/master/objects/cauldron/model.gltf', pos: { x: 0, y: 0, z: -5 }, s: 2, n: 'Caldero de Almas', d: 'Donde se cocinan pociones prohibidas.' }
+        ];
+        assets.forEach(a => {
+            this.loader.load(a.url, (gltf) => {
+                const m = gltf.scene;
+                m.position.set(a.pos.x, a.pos.y, a.pos.z);
+                m.scale.set(a.s, a.s, a.s);
+                m.traverse(c => { if (c.isMesh) c.userData = { name: a.n, description: a.d, isHalloweenItem: true }; });
+                if (gltf.animations.length > 0) {
+                    const mixer = new THREE.AnimationMixer(m);
+                    mixer.clipAction(gltf.animations[0]).play();
+                    this.mixers.push(mixer);
                 }
+                this.scene.add(m);
+                this.items.push(m);
             });
-
-            // Handle Animations
-            if (gltf.animations && gltf.animations.length > 0) {
-                const mixer = new THREE.AnimationMixer(model);
-                const action = mixer.clipAction(gltf.animations[0]); // Play first animation
-                action.play();
-                this.mixers.push(mixer);
-            }
-
-            this.scene.add(model);
-            this.items.push(model);
         });
     }
 
     setupEventListeners() {
-        window.addEventListener('resize', () => this.onResize());
-        window.addEventListener('mousemove', (e) => this.onMouseMove(e));
-    }
-
-    onResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        if (this.composer) this.composer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    onMouseMove(event) {
-        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-        // Check for intersections
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-        const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-
-        const halloweenIntersects = intersects.filter(i => i.object.userData.isHalloweenItem);
-
-        if (halloweenIntersects.length > 0) {
-            const topObject = halloweenIntersects[0].object;
-            if (this.hoveredObject !== topObject) {
-                this.hoveredObject = topObject;
-                this.showObjectInfo(topObject.userData);
-            }
-        } else {
-            if (this.hoveredObject) {
+        window.addEventListener('resize', () => {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            if (this.composer) this.composer.setSize(window.innerWidth, window.innerHeight);
+        });
+        window.addEventListener('mousemove', (e) => {
+            this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+            const interacts = this.raycaster.intersectObjects(this.scene.children, true).filter(i => i.object.userData.isHalloweenItem);
+            if (interacts.length > 0) {
+                const obj = interacts[0].object;
+                if (this.hoveredObject !== obj) {
+                    this.hoveredObject = obj;
+                    const info = document.getElementById('object-info');
+                    document.getElementById('object-name').innerText = obj.userData.name;
+                    document.getElementById('object-desc').innerText = obj.userData.description;
+                    info.style.animation = 'none';
+                    info.offsetHeight;
+                    info.style.animation = 'glitch 0.5s ease-out';
+                    info.classList.remove('hidden');
+                }
+            } else if (this.hoveredObject) {
                 this.hoveredObject = null;
-                this.hideObjectInfo();
+                document.getElementById('object-info').classList.add('hidden');
             }
-        }
-    }
-
-    showObjectInfo(data) {
-        const info = document.getElementById('object-info');
-        document.getElementById('object-name').innerText = data.name;
-        document.getElementById('object-desc').innerText = data.description;
-
-        // Cursed Glitch Effect
-        info.style.animation = 'none';
-        info.offsetHeight; // trigger reflow
-        info.style.animation = 'glitch 0.5s ease-out';
-
-        info.classList.remove('hidden');
-    }
-
-    hideObjectInfo() {
-        document.getElementById('object-info').classList.add('hidden');
+        });
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
         this.controls.update();
-
         const time = Date.now() * 0.001;
         const delta = this.clock.getDelta();
+        this.mixers.forEach(m => m.update(delta));
 
-        // Update Animation Mixers
-        this.mixers.forEach(mixer => mixer.update(delta));
-
-        // Camera Breathing Effect
-        this.camera.position.y += Math.sin(time * 0.5) * 0.005;
-
-        // Lightning random trigger
-        if (Math.random() > 0.997) {
-            this.triggerLightning();
+        if (this.shakeTime > 0) {
+            this.camera.position.x += (Math.random() - 0.5) * this.shakeTime;
+            this.camera.position.z += (Math.random() - 0.5) * this.shakeTime;
+            this.shakeTime -= 0.02;
+        } else {
+            this.camera.position.y += Math.sin(time * 0.5) * 0.005;
         }
 
-        // Blood Moon cycle
+        if (Math.random() > 0.997) this.triggerLightning();
         if (this.moonMat) {
-            const shift = (Math.sin(time * 0.1) + 1) / 2;
-            this.moonMat.color.setHSL(0, shift, 0.5 + shift * 0.5);
-            this.scene.fog.color.setHSL(0.7, 0.3, 0.02 + shift * 0.01);
+            const s = (Math.sin(time * 0.1) + 1) / 2;
+            this.moonMat.color.setHSL(0, s, 0.5 + s * 0.5);
+            this.scene.fog.color.setHSL(0.7, 0.3, 0.02 + s * 0.01);
         }
-
-        // Flickering Pumpkin Light
-        if (this.pumpkinLight) {
-            this.pumpkinLight.intensity = 8 + Math.sin(time * 10) * 2 + Math.random() * 2;
-        }
-
-        // Flickering Mouse "Flashlight"
+        if (this.pumpkinLight) this.pumpkinLight.intensity = 8 + Math.sin(time * 10) * 2 + Math.random() * 2;
         if (this.mouseLight) {
-            this.raycaster.setFromCamera(this.mouse, this.camera);
             this.mouseLight.position.copy(this.camera.position);
             this.mouseLight.position.add(this.raycaster.ray.direction.multiplyScalar(2));
-
-            // Random flickering battery effect
-            const flicker = Math.random() > 0.98 ? Math.random() * 0.5 : 1;
-            this.mouseLight.intensity = 0.5 * flicker;
+            this.mouseLight.intensity = 0.5 * (Math.random() > 0.98 ? 0.2 : 1);
         }
-
-        // Animate Fog
-        if (this.fogParticles) {
-            this.fogParticles.children.forEach((p, i) => {
-                p.position.y += Math.sin(time + i) * 0.002;
-                p.rotation.y += 0.01;
-                p.material.opacity = 0.05 + Math.sin(time * 0.5 + i) * 0.05;
-            });
-        }
-
-        // Animate Embers
-        if (this.embers) {
-            this.embers.rotation.y += 0.001;
-            this.embers.position.y = Math.sin(time * 0.5) * 0.5;
-        }
-
-        // Animate Bats
-        if (this.bats) {
-            this.bats.children.forEach(bat => {
-                bat.userData.angle += 0.02;
-                bat.position.x += Math.cos(bat.userData.angle) * bat.userData.speed;
-                bat.position.z += Math.sin(bat.userData.angle) * bat.userData.speed;
-                bat.rotation.y = -bat.userData.angle;
-                bat.scale.x = Math.sin(time * 20) > 0 ? 1 : 0.5; // Flapping wing effect
-            });
-        }
-
-        // Animate Rain
+        if (this.fogParticles) this.fogParticles.children.forEach((p, i) => { p.position.y += Math.sin(time + i) * 0.002; p.material.opacity = 0.05 + Math.sin(time * 0.5 + i) * 0.05; });
+        if (this.leaves) this.leaves.children.forEach(l => { l.position.y -= l.userData.sy; l.rotation.x += l.userData.sr; if (l.position.y < 0) l.position.y = 15; });
+        if (this.bats) this.bats.children.forEach(b => { b.userData.angle += 0.02; b.position.x += Math.cos(b.userData.angle) * b.userData.speed; b.position.z += Math.sin(b.userData.angle) * b.userData.speed; b.scale.x = Math.sin(time * 20) > 0 ? 1 : 0.5; });
         if (this.rain) {
-            const positions = this.rain.geometry.attributes.position.array;
-            for (let i = 1; i < positions.length; i += 3) {
-                positions[i] -= 0.5;
-                if (positions[i] < 0) positions[i] = 20;
-            }
+            const p = this.rain.geometry.attributes.position.array;
+            for (let i = 1; i < p.length; i += 3) { p[i] -= 0.5; if (p[i] < 0) p[i] = 20; }
             this.rain.geometry.attributes.position.needsUpdate = true;
         }
+        this.items.forEach((item, i) => { item.position.y += Math.sin(time + i) * 0.003; });
 
-        // Subtle floating animation for items
-        this.items.forEach((item, index) => {
-            item.position.y += Math.sin(time + index) * 0.003;
-            item.rotation.y += 0.002;
-        });
-
-        // Use Composer if available for Bloom
-        if (this.composer) {
-            this.composer.render();
-        } else {
-            this.renderer.render(this.scene, this.camera);
-        }
+        if (this.composer) this.composer.render();
+        else this.renderer.render(this.scene, this.camera);
     }
 }
 
