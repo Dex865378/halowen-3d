@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 class HalloweenScene {
     constructor() {
@@ -46,8 +49,11 @@ class HalloweenScene {
 
         this.setupLights();
         this.createEnvironment();
+        this.createMoon();
         this.loadModels();
         this.setupEventListeners();
+        this.setupAudio();
+        this.setupPostProcessing();
         this.animate();
 
         // Loading Progress
@@ -72,20 +78,20 @@ class HalloweenScene {
     }
 
     setupLights() {
-        const ambientLight = new THREE.AmbientLight('#1a0b2e', 0.3); // Deep purple ambient
+        // Lightning Flash
+        this.lightningLight = new THREE.DirectionalLight('#ffffff', 0);
+        this.scene.add(this.lightningLight);
+
+        // Ambient Purples
+        const ambientLight = new THREE.AmbientLight('#1a0b2e', 0.4);
         this.scene.add(ambientLight);
 
-        // Moon light (Blue-ish)
-        const moonLight = new THREE.DirectionalLight('#4b5563', 0.5);
-        moonLight.position.set(5, 10, 5);
-        this.scene.add(moonLight);
-
-        // The "Pumpkin Flame" - Flickering Point Light
+        // The "Pumpkin Flame"
         this.pumpkinLight = new THREE.PointLight('#ff4d00', 10, 15);
         this.pumpkinLight.position.set(-4, 1.5, 1);
         this.scene.add(this.pumpkinLight);
 
-        // Subtle mouse light (Flashlight effect)
+        // Subtle mouse light
         this.mouseLight = new THREE.PointLight('#ffffff', 0, 10);
         this.scene.add(this.mouseLight);
     }
@@ -150,6 +156,65 @@ class HalloweenScene {
         });
         this.embers = new THREE.Points(embersGeo, embersMat);
         this.scene.add(this.embers);
+    }
+
+    createMoon() {
+        const moonGeo = new THREE.SphereGeometry(2, 32, 32);
+        this.moonMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+        this.moon = new THREE.Mesh(moonGeo, this.moonMat);
+        this.moon.position.set(15, 15, -20);
+        this.scene.add(this.moon);
+
+        // Moon glow
+        const glowGeo = new THREE.SphereGeometry(2.5, 32, 32);
+        const glowMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.1 });
+        const glow = new THREE.Mesh(glowGeo, glowMat);
+        this.moon.add(glow);
+    }
+
+    setupPostProcessing() {
+        const renderScene = new RenderPass(this.scene, this.camera);
+        this.bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.5, // strength
+            0.4, // radius
+            0.85 // threshold
+        );
+
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(renderScene);
+        this.composer.addPass(this.bloomPass);
+    }
+
+    setupAudio() {
+        this.listener = new THREE.AudioListener();
+        this.camera.add(this.listener);
+
+        // Simulating 3D audio via synthesized wind and bleeps
+        this.audioCtx = THREE.AudioContext.getContext();
+    }
+
+    triggerLightning() {
+        if (!this.lightningLight) return;
+        this.lightningLight.intensity = 15;
+
+        // Random thunder sound effect (Noise)
+        const buffer = this.audioCtx.createBuffer(1, this.audioCtx.sampleRate * 2, this.audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < buffer.length; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 5000);
+        }
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = buffer;
+        const gain = this.audioCtx.createGain();
+        gain.gain.value = 0.1;
+        source.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        source.start();
+
+        setTimeout(() => this.lightningLight.intensity = 0, 100);
+        setTimeout(() => this.lightningLight.intensity = 10, 150);
+        setTimeout(() => this.lightningLight.intensity = 0, 250);
     }
 
     loadModels() {
@@ -250,6 +315,18 @@ class HalloweenScene {
 
         const time = Date.now() * 0.001;
 
+        // Lightning random trigger
+        if (Math.random() > 0.997) {
+            this.triggerLightning();
+        }
+
+        // Blood Moon cycle (Slow transition)
+        if (this.moonMat) {
+            const shift = (Math.sin(time * 0.1) + 1) / 2;
+            this.moonMat.color.setHSL(0, shift, 0.5 + shift * 0.5); // Turns red
+            this.scene.fog.color.setHSL(0.7, 0.5, 0.05 + shift * 0.02);
+        }
+
         // Flickering Pumpkin Light
         if (this.pumpkinLight) {
             this.pumpkinLight.intensity = 8 + Math.sin(time * 10) * 2 + Math.random() * 2;
@@ -268,6 +345,7 @@ class HalloweenScene {
             this.fogParticles.children.forEach((p, i) => {
                 p.position.y += Math.sin(time + i) * 0.002;
                 p.rotation.y += 0.01;
+                p.material.opacity = 0.05 + Math.sin(time * 0.5 + i) * 0.05;
             });
         }
 
@@ -283,7 +361,12 @@ class HalloweenScene {
             item.rotation.y += 0.002;
         });
 
-        this.renderer.render(this.scene, this.camera);
+        // Use Composer if available for Bloom
+        if (this.composer) {
+            this.composer.render();
+        } else {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 }
 
