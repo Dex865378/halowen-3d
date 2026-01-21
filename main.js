@@ -28,13 +28,13 @@ class HalloweenScene {
         // Renderer
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: true,
-            alpha: true
+            antialias: false, // Antialias is heavy with post-processing
+            alpha: true,
+            powerPreference: 'high-performance'
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.setPixelRatio(1); // Lock to 1 to save GPU
+        this.renderer.shadowMap.enabled = false; // Disable heavy shadows
 
         // Controls
         this.controls = new OrbitControls(this.camera, this.canvas);
@@ -118,40 +118,40 @@ class HalloweenScene {
         ground.receiveShadow = true;
         this.scene.add(ground);
 
-        // Fog Particles (Heavier at floor level)
+        // Fog Particles (Fewer but larger for performance)
         this.fogParticles = new THREE.Group();
-        const fogGeo = new THREE.SphereGeometry(0.5, 8, 8);
+        const fogGeo = new THREE.SphereGeometry(1, 6, 6); // More efficient geometry
         const fogMat = new THREE.MeshBasicMaterial({
-            color: '#4a3075',
+            color: '#3a2065',
             transparent: true,
-            opacity: 0.1
+            opacity: 0.08
         });
 
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < 60; i++) { // Reduced from 200
             const particle = new THREE.Mesh(fogGeo, fogMat);
             particle.position.set(
                 (Math.random() - 0.5) * 40,
                 Math.random() * 2,
                 (Math.random() - 0.5) * 40
             );
-            particle.scale.setScalar(Math.random() * 2 + 1);
+            particle.scale.setScalar(Math.random() * 4 + 2);
             this.fogParticles.add(particle);
         }
         this.scene.add(this.fogParticles);
 
         // Fireflies / Floating Embers
         const embersGeo = new THREE.BufferGeometry();
-        const embersCount = 300;
+        const embersCount = 100; // Reduced from 300
         const embersPos = new Float32Array(embersCount * 3);
         for (let i = 0; i < embersCount * 3; i++) {
-            embersPos[i] = (Math.random() - 0.5) * 50;
+            embersPos[i] = (Math.random() - 0.5) * 40;
         }
         embersGeo.setAttribute('position', new THREE.BufferAttribute(embersPos, 3));
         const embersMat = new THREE.PointsMaterial({
-            size: 0.08,
+            size: 0.1,
             color: '#ff6600',
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.6,
             blending: THREE.AdditiveBlending
         });
         this.embers = new THREE.Points(embersGeo, embersMat);
@@ -176,9 +176,9 @@ class HalloweenScene {
         const renderScene = new RenderPass(this.scene, this.camera);
         this.bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            1.5, // strength
-            0.4, // radius
-            0.85 // threshold
+            0.8, // Reduced strength
+            0.3, // Reduced radius
+            0.9  // Higher threshold
         );
 
         this.composer = new EffectComposer(this.renderer);
