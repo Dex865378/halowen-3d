@@ -72,49 +72,84 @@ class HalloweenScene {
     }
 
     setupLights() {
-        const ambientLight = new THREE.AmbientLight('#2b1055', 0.5); // Purple ambient
+        const ambientLight = new THREE.AmbientLight('#1a0b2e', 0.3); // Deep purple ambient
         this.scene.add(ambientLight);
 
-        const moonLight = new THREE.DirectionalLight('#4b5563', 0.8);
+        // Moon light (Blue-ish)
+        const moonLight = new THREE.DirectionalLight('#4b5563', 0.5);
         moonLight.position.set(5, 10, 5);
-        moonLight.castShadow = true;
         this.scene.add(moonLight);
 
-        // Orange "Hell" light from bottom
-        const bottomLight = new THREE.PointLight('#ff4d00', 5, 20);
-        bottomLight.position.set(0, -2, 0);
-        this.scene.add(bottomLight);
+        // The "Pumpkin Flame" - Flickering Point Light
+        this.pumpkinLight = new THREE.PointLight('#ff4d00', 10, 15);
+        this.pumpkinLight.position.set(-4, 1.5, 1);
+        this.scene.add(this.pumpkinLight);
+
+        // Subtle mouse light (Flashlight effect)
+        this.mouseLight = new THREE.PointLight('#ffffff', 0, 10);
+        this.scene.add(this.mouseLight);
     }
 
     createEnvironment() {
-        // Dark Ground
-        const groundGeometry = new THREE.CircleGeometry(20, 32);
+        // Advanced "Spooky" Ground
+        const groundGeometry = new THREE.PlaneGeometry(100, 100, 50, 50);
+
+        // Add random height to the ground for a rough terrain look
+        const vertices = groundGeometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            vertices[i + 2] = Math.random() * 0.2;
+        }
+
         const groundMaterial = new THREE.MeshStandardMaterial({
-            color: '#050505',
-            roughness: 0.8,
-            metalness: 0.2
+            color: '#020205',
+            roughness: 0.9,
+            metalness: 0.1,
+            flatShading: true
         });
+
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         this.scene.add(ground);
 
-        // Add some random "Spooky" particles
-        const particlesGeometry = new THREE.BufferGeometry();
-        const count = 500;
-        const positions = new Float32Array(count * 3);
-        for (let i = 0; i < count * 3; i++) {
-            positions[i] = (Math.random() - 0.5) * 40;
-        }
-        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        const particlesMaterial = new THREE.PointsMaterial({
-            size: 0.05,
-            color: '#8b5cf6',
+        // Fog Particles (Heavier at floor level)
+        this.fogParticles = new THREE.Group();
+        const fogGeo = new THREE.SphereGeometry(0.5, 8, 8);
+        const fogMat = new THREE.MeshBasicMaterial({
+            color: '#4a3075',
             transparent: true,
-            opacity: 0.6
+            opacity: 0.1
         });
-        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
-        this.scene.add(particles);
+
+        for (let i = 0; i < 200; i++) {
+            const particle = new THREE.Mesh(fogGeo, fogMat);
+            particle.position.set(
+                (Math.random() - 0.5) * 40,
+                Math.random() * 2,
+                (Math.random() - 0.5) * 40
+            );
+            particle.scale.setScalar(Math.random() * 2 + 1);
+            this.fogParticles.add(particle);
+        }
+        this.scene.add(this.fogParticles);
+
+        // Fireflies / Floating Embers
+        const embersGeo = new THREE.BufferGeometry();
+        const embersCount = 300;
+        const embersPos = new Float32Array(embersCount * 3);
+        for (let i = 0; i < embersCount * 3; i++) {
+            embersPos[i] = (Math.random() - 0.5) * 50;
+        }
+        embersGeo.setAttribute('position', new THREE.BufferAttribute(embersPos, 3));
+        const embersMat = new THREE.PointsMaterial({
+            size: 0.08,
+            color: '#ff6600',
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+        this.embers = new THREE.Points(embersGeo, embersMat);
+        this.scene.add(this.embers);
     }
 
     loadModels() {
@@ -213,10 +248,38 @@ class HalloweenScene {
         requestAnimationFrame(() => this.animate());
         this.controls.update();
 
-        // Subtle floating animation for items
         const time = Date.now() * 0.001;
+
+        // Flickering Pumpkin Light
+        if (this.pumpkinLight) {
+            this.pumpkinLight.intensity = 8 + Math.sin(time * 10) * 2 + Math.random() * 2;
+        }
+
+        // Mouse "Flashlight" follow
+        if (this.mouseLight) {
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+            this.mouseLight.position.copy(this.camera.position);
+            this.mouseLight.position.add(this.raycaster.ray.direction.multiplyScalar(2));
+            this.mouseLight.intensity = 0.5;
+        }
+
+        // Animate Fog
+        if (this.fogParticles) {
+            this.fogParticles.children.forEach((p, i) => {
+                p.position.y += Math.sin(time + i) * 0.002;
+                p.rotation.y += 0.01;
+            });
+        }
+
+        // Animate Embers
+        if (this.embers) {
+            this.embers.rotation.y += 0.001;
+            this.embers.position.y = Math.sin(time * 0.5) * 0.5;
+        }
+
+        // Subtle floating animation for items
         this.items.forEach((item, index) => {
-            item.position.y += Math.sin(time + index) * 0.005;
+            item.position.y += Math.sin(time + index) * 0.003;
             item.rotation.y += 0.002;
         });
 
