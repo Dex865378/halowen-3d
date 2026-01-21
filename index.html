@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gothic Halloween 3D Explorer</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Outfit:wght@300;400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="loader">
+        <div class="spinner"></div>
+        <p>Invocando espíritus 3D...</p>
+    </div>
+
+    <div id="ui-container">
+        <header>
+            <h1 class="glow-text">HALLOWEEN <span>3D</span></h1>
+            <p class="subtitle">Explora los oscuros secretos de la noche. Pasa el cursor por los objetos.</p>
+        </header>
+
+        <div id="object-info" class="hidden">
+            <h2 id="object-name">Nombre del Objeto</h2>
+            <p id="object-desc">Secretos antiguos susurran desde las sombras...</p>
+        </div>
+
+        <footer>
+            <div class="controls-hint">
+                <span>🖱️ Click + Arrastrar: Rotar</span>
+                <span>🖱️ Scroll: Zoom</span>
+                <span>🖱️ Click derecho: Desplazar</span>
+            </div>
+        </footer>
+    </div>
+
+    <canvas id="three-canvas"></canvas>
+
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="main.js"></script>
+</body>
+
+</html>
