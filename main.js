@@ -68,15 +68,17 @@ class HalloweenScene {
 
         this.loadingManager.onLoad = () => {
             document.getElementById('progress-bar').style.width = '100%';
-            document.getElementById('loader-text').innerText = 'Ritual completado. Entrando en el abismo...';
+            const text = document.getElementById('loader-text');
+            text.innerText = 'Ritual completado. Entrando en el abismo...';
+            text.style.color = '#ff4d00';
 
             setTimeout(() => {
                 const loader = document.getElementById('loader');
                 loader.classList.add('open');
                 setTimeout(() => {
                     loader.style.display = 'none';
-                }, 1500); // Wait for gate animation
-            }, 800);
+                }, 2000); // Wait for gate animation
+            }, 1000);
         };
     }
 
@@ -192,9 +194,12 @@ class HalloweenScene {
     setupAudio() {
         this.listener = new THREE.AudioListener();
         this.camera.add(this.listener);
-
-        // Simulating 3D audio via synthesized wind and bleeps
         this.audioCtx = THREE.AudioContext.getContext();
+
+        // Resume audio on interaction
+        document.body.addEventListener('click', () => {
+            if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+        }, { once: true });
     }
 
     triggerLightning() {
@@ -331,6 +336,7 @@ class HalloweenScene {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        if (this.composer) this.composer.setSize(window.innerWidth, window.innerHeight);
     }
 
     onMouseMove(event) {
@@ -359,14 +365,13 @@ class HalloweenScene {
 
     showObjectInfo(data) {
         const info = document.getElementById('object-info');
-        const nameEl = document.getElementById('object-name');
-        nameEl.innerText = data.name;
+        document.getElementById('object-name').innerText = data.name;
         document.getElementById('object-desc').innerText = data.description;
 
-        // Glitch effect on show
+        // Cursed Glitch Effect
         info.style.animation = 'none';
         info.offsetHeight; // trigger reflow
-        info.style.animation = 'glitch 0.3s ease';
+        info.style.animation = 'glitch 0.5s ease-out';
 
         info.classList.remove('hidden');
     }
