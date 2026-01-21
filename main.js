@@ -72,10 +72,10 @@ class HalloweenScene {
 
             setTimeout(() => {
                 const loader = document.getElementById('loader');
-                loader.style.opacity = '0';
+                loader.classList.add('open');
                 setTimeout(() => {
                     loader.style.display = 'none';
-                }, 500);
+                }, 1500); // Wait for gate animation
             }, 800);
         };
     }
